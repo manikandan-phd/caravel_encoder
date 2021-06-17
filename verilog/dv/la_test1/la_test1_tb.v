@@ -65,10 +65,10 @@ module la_test1_tb;
 	end
 
 	initial begin
-		wait(checkbits == 16'hAB40);
+		wait(checkbits == 16'hAAAA);
 		$display("LA Test 1 started");
 		wait(checkbits == 16'hAB41);
-		wait(checkbits == 16'hAB51);
+		
 		#10000;
 		$finish;
 	end
