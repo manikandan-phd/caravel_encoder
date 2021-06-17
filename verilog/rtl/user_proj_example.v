@@ -18,20 +18,10 @@
  *-------------------------------------------------------------
  *
  * user_proj_example
- *
- * This is an example of a (trivially simple) user project,
- * showing how the user project can connect to the logic
- * analyzer, the wishbone bus, and the I/O pads.
- *
- * This project generates an integer count, which is output
- * on the user area GPIO pads (digital output only).  The
- * wishbone connection allows the project to be controlled
- * (start and stop) from the management SoC program.
- *
- * See the testbenches in directory "mprj_counter" for the
- * example programs that drive this user project.  The three
- * testbenches are "io_ports", "la_test1", and "la_test2".
- *
+ * Multipurpose encoder integrated with caravel
+ * Receives input from LA and outputs either to LA and directed to 
+ * GPIO
+ * Test bench la_test1 can be used to test the encoding process
  *-------------------------------------------------------------
  */
 
@@ -83,7 +73,7 @@ module user_proj_example #(
 
     wire [31:0] rdata; 
     wire [31:0] wdata;
-    wire [BITS-1:0] count;
+    wire [BITS-1:0] CODE;
 
     wire valid;
     wire [3:0] wstrb;
@@ -96,76 +86,85 @@ module user_proj_example #(
     assign wdata = wbs_dat_i;
 
     // IO
-    assign io_out = count;
+    assign io_out = CODE;
     assign io_oeb = {(`MPRJ_IO_PADS-1){rst}};
 
     // IRQ
     assign irq = 3'b000;	// Unused
-
+	
     // LA
-    assign la_data_out = {{(127-BITS){1'b0}}, count};
-    // Assuming LA probes [63:32] are for controlling the count register  
-    assign la_write = ~la_oenb[63:32] & ~{BITS{valid}};
-    // Assuming LA probes [65:64] are for controlling the count clk & reset  
-    assign clk = (~la_oenb[64]) ? la_data_in[64]: wb_clk_i;
-    assign rst = (~la_oenb[65]) ? la_data_in[65]: wb_rst_i;
-
-    counter #(
+    assign la_data_out = {{(127-BITS){1'b0}}, CODE};
+	
+    // Assuming LA probes [127:32] are for controlling the CODE register  
+    
+    assign la_write = ~((la_oenb[127:96] | la_oenb[95:64] )| la_oenb[63:32]);
+	
+    // controlling the CODE clk & reset  
+    assign clk = wb_clk_i;
+    assign rst = wb_rst_i;
+	
+    multi_encoder #(
         .BITS(BITS)
-    ) counter(
+    ) multi_encoder(
         .clk(clk),
-        .reset(rst),
-        .ready(wbs_ack_o),
-        .valid(valid),
-        .rdata(rdata),
-        .wdata(wbs_dat_i),
-        .wstrb(wstrb),
+        .rst(rst),
+      //.ready(wbs_ack_o),
+      //.valid(valid),
+      //.rdata(rdata),
+      //.wdata(wbs_dat_i),
+      //.wstrb(wstrb),
         .la_write(la_write),
-        .la_input(la_data_in[63:32]),
-        .count(count)
+        .RM(la_data_in[127:96]),
+		.RT(la_data_in[95:64]),
+		.KEY(la_data_in[63:32]),
+        .CODE(CODE)
     );
 
 endmodule
 
-module counter #(
+module multi_encoder #(
     parameter BITS = 32
 )(
     input clk,
-    input reset,
-    input valid,
-    input [3:0] wstrb,
-    input [BITS-1:0] wdata,
+    input rst,
+  //input valid,
+  //input [3:0] wstrb,
+  //input [BITS-1:0] wdata,
     input [BITS-1:0] la_write,
-    input [BITS-1:0] la_input,
+    input [BITS-1:0] RM,
+    input [BITS-1:0] RT,
+    input [BITS-1:0] KEY,
     output ready,
-    output [BITS-1:0] rdata,
-    output [BITS-1:0] count
+  //output [BITS-1:0] rdata,
+    output [BITS-1:0] CODE
 );
-    reg ready;
-    reg [BITS-1:0] count;
-    reg [BITS-1:0] rdata;
+   //reg ready;
+    reg [BITS-1:0] CODE,T_TEMP,R_TEMP,SKEY,PDT,PDR;
+  //reg [BITS-1:0] rdata;
+    wire [BITS-1:0]PT,PM;
+    Per_32B pt(PT,RT,KEY, clk,rst);
+    Per_32B pm(PM,RM,KEY, clk,rst);
 
     always @(posedge clk) begin
-        if (reset) begin
-            count <= 0;
-            ready <= 0;
-        end else begin
-            ready <= 1'b0;
-            if (~|la_write) begin
-                count <= count + 1;
-            end
-            if (valid && !ready) begin
-                ready <= 1'b1;
-                rdata <= count;
-                if (wstrb[0]) count[7:0]   <= wdata[7:0];
-                if (wstrb[1]) count[15:8]  <= wdata[15:8];
-                if (wstrb[2]) count[23:16] <= wdata[23:16];
-                if (wstrb[3]) count[31:24] <= wdata[31:24];
-            end else if (|la_write) begin
-                count <= la_write & la_input;
-            end
+        if (rst) begin
+	        PDT[31:0]<= 32'h0000000; 
+		PDR[31:0]<= 32'h0000000;
+		CODE[31:0] <= 32'h0000000;
         end
+	else if (|la_write) begin
+                SKEY[31:0]<={KEY[30:0],1'b0};
+		T_TEMP[31:0]<= KEY[31:0]^PT[31:0];
+		R_TEMP[31:0]<= KEY[31:0]^PM[31:0];
+		PDT[31:0]<= T_TEMP[31:0]^SKEY[31:0]; 
+		PDR[31:0]<= R_TEMP[31:0]^SKEY[31:0];
+		CODE[31:0] <= PDR[31:0] ^ PDT[31:0];
+				
+        end
+       
     end
 
 endmodule
 `default_nettype wire
+
+
+
