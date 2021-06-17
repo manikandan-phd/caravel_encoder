@@ -25,4 +25,5 @@
 `else
     `include "user_project_wrapper.v"
     `include "user_proj_example.v"
+    `include "Per_32B.v"
 `endif
