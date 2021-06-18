@@ -27,7 +27,7 @@ set ::env(CLOCK_NET) "wb_clk_i"
 set ::env(CLOCK_PERIOD) "20"
 
 set ::env(FP_SIZING) absolute
-set ::env(DIE_AREA) "0 0 1000 1000"
+set ::env(DIE_AREA) "0 0 1200 1000"
 set ::env(DESIGN_IS_CORE) 0
 
 set ::env(VDD_NETS) [list {vccd1} {vccd2} {vdda1} {vdda2}]
@@ -39,6 +39,8 @@ set ::env(PL_BASIC_PLACEMENT) 0
 set ::env(PL_TARGET_DENSITY) 0.5
 
 set ::env(DIODE_INSERTION_STRATEGY) "2"
+
+set ::env(GLB_RT_MAXLAYER) 5
 
 # If you're going to use multiple power domains, then keep this disabled.
 set ::env(RUN_CVC) 0
