@@ -28,6 +28,7 @@ set ::env(DESIGN_NAME) user_project_wrapper
 set ::env(VERILOG_FILES) "\
 	$script_dir/../../caravel/verilog/rtl/defines.v \
 	$script_dir/../../verilog/rtl/user_project_wrapper.v"
+	
 
 ## Clock configurations
 set ::env(CLOCK_PORT) "user_clock2"
@@ -68,3 +69,8 @@ set ::env(DIODE_INSERTION_STRATEGY) 0
 set ::env(FILL_INSERTION) 0
 set ::env(TAP_DECAP_INSERTION) 0
 set ::env(CLOCK_TREE_SYNTH) 0
+
+## Added to make xor comparision off
+set ::env(RUN_KLAYOUT_XOR) 0
+set ::env(RUN_KLAYOUT_DRC) 0
+
